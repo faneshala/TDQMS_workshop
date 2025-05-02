@@ -4,7 +4,6 @@ from numpy import trapz
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-from scipy.special import factorial
 from qdyn import animate_dynamics, propagator
 import math
 
@@ -76,6 +75,10 @@ def eigen_ho(x, v, m, k):
 
 ground_state_force_cst = 2 * D_e_0 * gamma_0**2
 psi0 = eigen_ho(x_grid - r_e_0, 0, red_mass1, ground_state_force_cst)
+
+dx = x_grid[1] - x_grid[0]
+psi0 /= np.sqrt(np.sum(np.abs(psi0)**2) * dx)
+
 psi0_vis = 0.01 * psi0 + V(r_e_0, D_e_0, gamma_0, r_e_0, b, T_e_0)
 
 V0 = V(x_grid, D_e_0, gamma_0, r_e_0, b, T_e_0)
@@ -84,14 +87,17 @@ V1 = V(x_grid, D_e_1, gamma_1, r_e_1, b, T_e_1)
 dipole_moment = dipole(x_grid - r_e_0)
 dipole_moment_vis = 0.02 * dipole_moment + V(r_e_0, D_e_0, gamma_0, r_e_0, b, T_e_0)
 
+phi0 = dipole(x_grid) * psi0
+
+
 #propagation
 wf_dynamics=np.zeros((nsteps+1,len(x_grid)))
-wf_dynamics[0]=psi0
+wf_dynamics[0]=phi0
 for step in range(nsteps):
-    psi = propagator(
+    phi = propagator(
         x_grid, wf_dynamics[step], red_mass1, dt,
         lambda x: V(x, D_e_1, gamma_1, r_e_1, b, T_e_1))
-    wf_dynamics[step+1]=psi
+    wf_dynamics[step+1]=phi
 
 
 autocorr = np.array([
@@ -158,4 +164,17 @@ plt.show()
 
 plt.figure(figsize=(8, 5))
 plt.plot(x_grid, autocorr)
+plt.show()
+
+
+spectrum = np.fft.fftshift(np.fft.fft(autocorr))
+freqs = np.fft.fftshift(np.fft.fftfreq(len(time_array), d=dt)) * 2 * np.pi  # en rad/a.u.
+
+plt.figure(figsize=(8, 5))
+plt.plot(freqs, np.abs(spectrum)**2)
+plt.xlabel("Fréquence (a.u.)")
+plt.ylabel("Spectre (intensité)")
+plt.title("Spectre d’absorption par transformée de Fourier")
+plt.grid(True)
+plt.tight_layout()
 plt.show()
